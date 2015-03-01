@@ -20,7 +20,7 @@ look at my _KafkaProducerVerticle_ I use for the tests.
 # TEST RUNTIME #
 I am using an embedded Kafka instance for testiung.
 
-__TESTS ARE VERY HEAVYWEIGHT_
+__TESTS ARE VERY HEAVYWEIGHT__
 
 # Get Kafka #
 I use Docker with the following image for my dev-setup: 
