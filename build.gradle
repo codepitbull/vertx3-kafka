@@ -1,0 +1,85 @@
+buildscript {
+    repositories { jcenter() }
+    dependencies {
+        classpath 'com.github.jengelman.gradle.plugins:shadow:1.1.1'
+    }
+}
+
+apply plugin: 'java'
+apply plugin: 'maven-publish'
+apply plugin: 'com.github.johnrengelman.shadow'
+
+version = '1.0-SNAPSHOT'
+
+if (!JavaVersion.current().java8Compatible) {
+    throw new IllegalStateException('''A Haiku:
+                                      |  This needs Java 8,
+                                      |  You are using something else,
+                                      |  Refresh. Try again.'''.stripMargin())
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        url = 'http://oss.sonatype.org/content/repositories/snapshots/'
+    }
+}
+
+configurations {
+    compile.exclude group: "commons-logging", module: "commons-logging"
+    compile.exclude group: "log4j", module: "log4j"
+    compile.exclude group: "org.slf4j", module: "slf4j-log4j12"
+}
+
+dependencies {
+    compile 'io.vertx:vertx-core:3.0.0-SNAPSHOT'
+    compile 'io.vertx:vertx-rx-java:3.0.0-SNAPSHOT'
+    compile 'org.apache.commons:commons-lang3:3.3.2'
+
+    compile 'org.slf4j:slf4j-api:1.7.10'
+    compile 'ch.qos.logback:logback-classic:1.0.13'
+
+    compile 'org.slf4j:jul-to-slf4j:1.7.10'
+    compile 'org.slf4j:jcl-over-slf4j:1.7.10'
+    compile 'org.slf4j:log4j-over-slf4j:1.7.10'
+
+    compile 'org.apache.kafka:kafka_2.11:0.8.2.0'
+
+    testCompile 'io.vertx:vertx-rx-java:3.0.0-SNAPSHOT:tests'
+    testCompile 'io.vertx:vertx-core:3.0.0-SNAPSHOT:tests'
+    testCompile 'junit:junit:4.11'
+
+}
+
+shadowJar {
+    classifier = 'fat'
+    manifest {
+        attributes 'Main-Class': 'io.vertx.core.Starter'
+        attributes 'Main-Verticle': 'java:io.vertx.example.HelloWorldServer'
+    }
+    mergeServiceFiles {
+        include 'META-INF/services/io.vertx.core.spi.VerticleFactory'
+    }
+    dependencies {
+        exclude(dependency('io.vertx:codegen'))
+        exclude(dependency('junit:junit'))
+        exclude(dependency('org.mvel:mvel2'))
+        exclude(dependency('log4j:log4j'))
+        exclude(dependency('org.slf4j:slf4j-api'))
+    }
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '2.0'
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            groupId 'de.codepitbull.vertx'
+            artifactId 'vertx-kafka'
+            version '1.0-SNAPSHOT'
+            from components.java
+        }
+    }
+}
