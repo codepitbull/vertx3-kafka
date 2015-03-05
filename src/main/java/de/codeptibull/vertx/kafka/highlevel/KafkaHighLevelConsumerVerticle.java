@@ -41,7 +41,6 @@ public class KafkaHighLevelConsumerVerticle extends AbstractVerticle {
 
     private String topic;
     private Thread consumerThread;
-    private boolean stop = false;
     private String targetAddress;
 
     @Override
@@ -63,7 +62,7 @@ public class KafkaHighLevelConsumerVerticle extends AbstractVerticle {
             @Override
             public void run() {
                 startFuture.complete();
-                while (!stop && iterator.hasNext()) {
+                while (iterator.hasNext()) {
                     vertx.eventBus().send(targetAddress, iterator.next().message());
                 }
                 consumer.shutdown();
@@ -89,7 +88,6 @@ public class KafkaHighLevelConsumerVerticle extends AbstractVerticle {
 
     @Override
     public void stop() throws Exception {
-        stop = true;
         consumerThread.interrupt();
         consumerThread.join();
     }
