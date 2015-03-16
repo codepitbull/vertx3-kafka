@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/codepitbull/vertx3-kafka.svg)](https://travis-ci.org/codepitbull/vertx3-kafka)
+
 # Vert.x 3 Kafka Module #
 This module is based on Vert.x 3 (SNAPSHOT) and Kafka 0.8.2.
 
