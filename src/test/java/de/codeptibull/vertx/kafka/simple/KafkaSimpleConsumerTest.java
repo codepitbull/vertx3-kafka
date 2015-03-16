@@ -4,6 +4,7 @@ import de.codeptibull.vertx.kafka.util.KafkaProducerVerticle;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.json.JsonObject;
 import io.vertx.test.core.VertxTestBase;
+import kafka.admin.AdminUtils;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaServer;
 import kafka.utils.*;
@@ -13,6 +14,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -47,6 +50,14 @@ public class KafkaSimpleConsumerTest extends VertxTestBase {
         Time mock = new MockTime();
         kafkaServer = TestUtils.createServer(config, mock);
 
+        AdminUtils.createTopic(zkClient, TEST_TOPIC, 1, 1, new Properties());
+        List<KafkaServer> servers = new ArrayList<>();
+        servers.add(kafkaServer);
+        TestUtils.waitUntilMetadataIsPropagated(scala.collection.JavaConversions.asScalaBuffer(servers), TEST_TOPIC, 0, 500);
+
+        TestUtils.waitUntilLeaderIsElectedOrChanged(zkClient, TEST_TOPIC, 0, 500, scala.Option.apply(null), scala.Option.apply(null));
+
+
         vertx.deployVerticle(KafkaProducerVerticle.class.getName(),
                 new DeploymentOptions().setConfig(new JsonObject().put("bootstrap.server", "127.0.0.1:" + port)));
 
@@ -68,6 +79,7 @@ public class KafkaSimpleConsumerTest extends VertxTestBase {
         range(0, 11).forEach(val -> {
             vertx.eventBus().send("outgoing", new JsonObject().put("topic", TOPIC).put("msg", "" + val));
         });
+        //TODO: why do have to do this?? I hit every wait-method available ...
         Thread.sleep(1000);
         KafkaSimpleConsumer consumer = new KafkaSimpleConsumer(new SimpleConsumerProperties.Builder()
                 .partition(0)
@@ -91,7 +103,9 @@ public class KafkaSimpleConsumerTest extends VertxTestBase {
         range(0, 11).forEach(val -> {
             vertx.eventBus().send("outgoing", new JsonObject().put("topic", TOPIC).put("msg", "" + val));
         });
+        //TODO: why do have to do this?? I hit every wait-method available ...
         Thread.sleep(1000);
+
         KafkaSimpleConsumer consumer = new KafkaSimpleConsumer(new SimpleConsumerProperties.Builder()
                 .partition(0)
                 .port(port)
