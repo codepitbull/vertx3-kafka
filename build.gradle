@@ -32,8 +32,8 @@ configurations {
 }
 
 dependencies {
-    compile 'io.vertx:vertx-core:3.0.0-SNAPSHOT'
-    compile 'io.vertx:vertx-rx-java:3.0.0-SNAPSHOT'
+    compile 'io.vertx:vertx-core:3.0.0-milestone2'
+    compile 'io.vertx:vertx-rx-java:3.0.0-milestone2'
     compile 'org.apache.commons:commons-lang3:3.3.2'
 
     compile 'org.slf4j:slf4j-api:1.7.10'
@@ -45,8 +45,9 @@ dependencies {
 
     compile 'org.apache.kafka:kafka_2.11:0.8.2.0'
 
-    testCompile 'io.vertx:vertx-rx-java:3.0.0-SNAPSHOT:tests'
-    testCompile 'io.vertx:vertx-core:3.0.0-SNAPSHOT:tests'
+    testCompile 'org.apache.kafka:kafka_2.11:0.8.2.0:test'
+    testCompile 'io.vertx:vertx-rx-java:3.0.0-milestone2:tests'
+    testCompile 'io.vertx:vertx-core:3.0.0-milestone2:tests'
     testCompile 'junit:junit:4.11'
 
 }

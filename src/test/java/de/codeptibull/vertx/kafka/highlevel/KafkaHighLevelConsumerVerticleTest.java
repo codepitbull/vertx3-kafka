@@ -1,11 +1,14 @@
 package de.codeptibull.vertx.kafka.highlevel;
 
-import de.codeptibull.vertx.kafka.util.EmbeddedKafkaCluster;
-import de.codeptibull.vertx.kafka.util.EmbeddedZookeeper;
 import de.codeptibull.vertx.kafka.util.KafkaProducerVerticle;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.json.JsonObject;
 import io.vertx.test.core.VertxTestBase;
+import kafka.server.KafkaConfig;
+import kafka.server.KafkaServer;
+import kafka.utils.*;
+import kafka.zk.EmbeddedZookeeper;
+import org.I0Itec.zkclient.ZkClient;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.After;
@@ -14,8 +17,6 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Properties;
 
 import static de.codeptibull.vertx.kafka.highlevel.KafkaHighLevelConsumerVerticle.*;
@@ -27,39 +28,47 @@ import static java.util.stream.IntStream.range;
 public class KafkaHighLevelConsumerVerticleTest extends VertxTestBase {
     private static final Logger logger = LoggerFactory.getLogger(KafkaHighLevelConsumerVerticleTest.class);
 
-    private EmbeddedZookeeper embeddedZookeeper;
-    private EmbeddedKafkaCluster embeddedKafkaCluster;
+    private int brokerId = 0;
+
+    private ZkClient zkClient;
+    private EmbeddedZookeeper zkServer;
+    private KafkaServer kafkaServer;
 
     public static final String TEST_TOPIC = "testTopic";
 
     @Before
     public void setUpTest() throws Exception{
-        embeddedZookeeper = new EmbeddedZookeeper(-1);
-        List<Integer> kafkaPorts = new ArrayList<Integer>();
-        kafkaPorts.add(-1);
-        embeddedKafkaCluster = new EmbeddedKafkaCluster(embeddedZookeeper.getConnection(), new Properties(), kafkaPorts);
-        embeddedZookeeper.startup();
-        logger.info("### Embedded Zookeeper connection: " + embeddedZookeeper.getConnection());
-        embeddedKafkaCluster.startup();
-        logger.info("### Embedded Kafka cluster broker list: " + embeddedKafkaCluster.getBrokerList());
+
+        String zkConnect = TestZKUtils.zookeeperConnect();
+        zkServer = new EmbeddedZookeeper(zkConnect);
+        zkClient = new ZkClient(zkServer.connectString(), 30000, 30000, ZKStringSerializer$.MODULE$);
+
+        // setup Broker
+        int port = TestUtils.choosePort();
+        Properties props = TestUtils.createBrokerConfig(brokerId, port, true);
+
+        KafkaConfig config = new KafkaConfig(props);
+        Time mock = new MockTime();
+        kafkaServer = TestUtils.createServer(config, mock);
 
         vertx.deployVerticle(KafkaProducerVerticle.class.getName(),
-                new DeploymentOptions().setConfig(new JsonObject().put("bootstrap.server", embeddedKafkaCluster.getBrokerList())));
+                new DeploymentOptions().setConfig(new JsonObject().put("bootstrap.server", "127.0.0.1:" + port)));
 
         vertx.deployVerticle(KafkaHighLevelConsumerVerticle.class.getName(),
                 new DeploymentOptions().setConfig(new JsonObject()
-                                .put(ZOOKEEPER_CONNECT, embeddedZookeeper.getConnection())
+                                .put(ZOOKEEPER_CONNECT, zkServer.connectString())
                                 .put(TOPIC, TEST_TOPIC)
                                 .put(GROUP_ID, "testGroup" + TEST_TOPIC)
                 ));
-        waitUntil(() -> vertx.deploymentIDs().size() == 2);
+        waitUntil(() -> vertx.deployments().size() == 2);
 
     }
 
     @After
     public void tearDown() {
-        embeddedKafkaCluster.shutdown();
-        embeddedZookeeper.shutdown();
+        kafkaServer.shutdown();
+        zkClient.close();
+        zkServer.shutdown();
     }
 
     @Test

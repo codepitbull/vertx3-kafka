@@ -1,8 +1,8 @@
 package de.codeptibull.vertx.kafka.simple;
 
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Context;
 import io.vertx.core.Future;
-import io.vertx.rxjava.core.AbstractVerticle;
-import io.vertx.rxjava.core.Context;
 
 import java.util.Arrays;
 import java.util.List;
@@ -12,9 +12,9 @@ import static org.apache.commons.lang3.Validate.notNull;
 
 /**
  * Config-Parameters: <br/>
- * listenAddress -> address on the eventBus this virticle is going to listen to for requests <br/>
+ * listenAddress -> address on the eventBus this verticle is going to listen to for requests <br/>
  * targetAddress -> address this verticle is going to send results from kafka to <br/>
- * partition -> the partition the verticle is goinf to read from <br/>
+ * partition -> the partition the verticle is going to read from <br/>
  * topic -> kafka-topic the verticle is going to subscribe to<br/>
  * port -> port of Kafka-hosts <br/>
  * brokers -> comma separated list of kafka-hosts <br/>

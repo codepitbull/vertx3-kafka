@@ -27,7 +27,7 @@ I use Docker with the following image for my dev-setup:
  
 docker pull devdb/kafka:latest
  
-docker run -d --name kafka -p 2181:2181 -p 9092:9092 devdb/Kafka
+docker run -d --name kafka -p 2181:2181 -p 9092:9092 devdb/kafka
 
 don't forget to add the docker-name to /etc/hosts as otherwise the conection will fail!
 
