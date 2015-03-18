@@ -57,7 +57,9 @@ public class KafkaSimpleConsumerVerticle extends AbstractVerticle {
         vertx.eventBus().<Integer>consumer(listenAddress, msg -> {
             consumer.request(msg.body());
             vertx.<ResultEnum>executeBlocking(event ->
-                    consumer.fetch(), null);
+                    consumer.fetch(), done -> {
+                System.out.println("RESULT "+done.result());
+            });
         }).completionHandler(done -> startFuture.complete());
 
     }

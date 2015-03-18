@@ -123,4 +123,40 @@ public class KafkaSimpleConsumerTest extends VertxTestBase {
 
         await();
     }
+
+
+    @Test
+    public void testProduceAndConsumeWithDelayAndResume() throws Exception{
+        AtomicInteger counter = new AtomicInteger(0);
+
+        range(0, 11).forEach(val -> {
+            vertx.eventBus().send("outgoing", new JsonObject().put("topic", TOPIC).put("msg", "" + val));
+        });
+        //TODO: why do have to do this?? I hit every wait-method available ...
+        Thread.sleep(1000);
+        KafkaSimpleConsumer consumer = new KafkaSimpleConsumer(new SimpleConsumerProperties.Builder()
+                .partition(0)
+                .port(port)
+                .topic(TOPIC)
+                .addBroker("127.0.0.1")
+                .build()
+                , msg -> {
+            if(30 == counter.incrementAndGet()) testComplete();
+        }
+        );
+
+
+        consumer.request(100);
+        consumer.fetch();
+
+        Thread.sleep(100);
+        range(0, 40).forEach(val -> {
+            vertx.eventBus().send("outgoing", new JsonObject().put("topic", TOPIC).put("msg", "" + val));
+        });
+
+        consumer.fetch();
+        consumer.close();
+
+        await();
+    }
 }

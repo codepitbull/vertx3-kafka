@@ -111,10 +111,11 @@ public class KafkaSimpleConsumer {
             }
             numErrors = 0;
 
-            if (!processRepsonseAndReturnNewOffset(currentOffset, cd, fetchResponse, pending)) return ResultEnum.TOPIC_EMPTY;
+            processRepsonseAndReturnNewOffset(currentOffset, cd, fetchResponse, pending);
+            //TODO: AAAAARGH
+//            if (!processRepsonseAndReturnNewOffset(currentOffset, cd, fetchResponse, pending)) return ResultEnum.TOPIC_EMPTY;
 
         }
-
         return ResultEnum.ERROR;
     }
 
@@ -129,7 +130,6 @@ public class KafkaSimpleConsumer {
             }
 
             pending.add(messageAndOffset);
-
             lastReadOffset.setValue(messageAndOffset.nextOffset());
             read = true;
         }

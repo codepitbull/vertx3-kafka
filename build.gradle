@@ -43,9 +43,9 @@ dependencies {
     compile 'org.slf4j:jcl-over-slf4j:1.7.10'
     compile 'org.slf4j:log4j-over-slf4j:1.7.10'
 
-    compile 'org.apache.kafka:kafka_2.11:0.8.2.0'
+    compile 'org.apache.kafka:kafka_2.11:0.8.2.1'
 
-    testCompile 'org.apache.kafka:kafka_2.11:0.8.2.0:test'
+    testCompile 'org.apache.kafka:kafka_2.11:0.8.2.1:test'
     testCompile 'io.vertx:vertx-rx-java:3.0.0-milestone2:tests'
     testCompile 'io.vertx:vertx-core:3.0.0-milestone2:tests'
     testCompile 'junit:junit:4.11'
