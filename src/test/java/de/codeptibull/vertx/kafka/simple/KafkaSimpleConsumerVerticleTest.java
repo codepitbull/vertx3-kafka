@@ -74,11 +74,11 @@ public class KafkaSimpleConsumerVerticleTest extends VertxTestBase {
         AtomicInteger counter = new AtomicInteger(0);
 
         vertx.eventBus().<byte[]>consumer("simple", msg -> {
-            if (counter.incrementAndGet() == 3000)
+            if (counter.incrementAndGet() == 40)
                 testComplete();
         });
 
-        range(0, 4000).forEach(val -> {
+        range(0, 40).forEach(val -> {
             vertx.eventBus().send("outgoing", new JsonObject().put("topic", TEST_TOPIC).put("msg", "" + val));
         });
 
@@ -94,9 +94,7 @@ public class KafkaSimpleConsumerVerticleTest extends VertxTestBase {
                                 .put(LISTEN_ADDRESS, "receive")
                                 .put(TARGET_ADDRESS, "simple")
                 ), comp -> {
-//                    vertx.eventBus().send("receive", 10);
-//                    vertx.eventBus().send("receive", 10);
-                    vertx.eventBus().send("receive", Integer.MAX_VALUE);
+                    vertx.eventBus().send("receive", 10);
                 });
 
         await();

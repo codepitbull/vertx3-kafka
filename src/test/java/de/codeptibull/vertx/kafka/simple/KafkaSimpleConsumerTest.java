@@ -79,19 +79,19 @@ public class KafkaSimpleConsumerTest extends VertxTestBase {
         range(0, 11).forEach(val -> {
             vertx.eventBus().send("outgoing", new JsonObject().put("topic", TOPIC).put("msg", "" + val));
         });
-        //TODO: why do have to do this?? I hit every wait-method available ...
+        //TODO: why do I have to do this?? I hit every wait-method available ...
         Thread.sleep(1000);
         KafkaSimpleConsumer consumer = new KafkaSimpleConsumer(new SimpleConsumerProperties.Builder()
                 .partition(0)
                 .port(port)
                 .topic(TOPIC)
                 .addBroker("127.0.0.1")
+                .stopOnEmptyToppic(true)
                 .build()
                 , msg -> {
                     if(10 < counter.incrementAndGet()) testComplete();
                 }
         );
-        consumer.request(10);
         consumer.fetch();
         consumer.close();
 
@@ -103,7 +103,7 @@ public class KafkaSimpleConsumerTest extends VertxTestBase {
         range(0, 11).forEach(val -> {
             vertx.eventBus().send("outgoing", new JsonObject().put("topic", TOPIC).put("msg", "" + val));
         });
-        //TODO: why do have to do this?? I hit every wait-method available ...
+        //TODO: why do I have to do this?? I hit every wait-method available ...
         Thread.sleep(1000);
 
         KafkaSimpleConsumer consumer = new KafkaSimpleConsumer(new SimpleConsumerProperties.Builder()
@@ -112,48 +112,12 @@ public class KafkaSimpleConsumerTest extends VertxTestBase {
                 .topic(TOPIC)
                 .addBroker("127.0.0.1")
                 .offset(4)
+                .stopOnEmptyToppic(true)
                 .build()
                 , msg -> {
                     if(new StringDeserializer().deserialize(null, msg).equals("4")) testComplete();
                 }
         );
-        consumer.request(1);
-        consumer.fetch();
-        consumer.close();
-
-        await();
-    }
-
-
-    @Test
-    public void testProduceAndConsumeWithDelayAndResume() throws Exception{
-        AtomicInteger counter = new AtomicInteger(0);
-
-        range(0, 11).forEach(val -> {
-            vertx.eventBus().send("outgoing", new JsonObject().put("topic", TOPIC).put("msg", "" + val));
-        });
-        //TODO: why do have to do this?? I hit every wait-method available ...
-        Thread.sleep(1000);
-        KafkaSimpleConsumer consumer = new KafkaSimpleConsumer(new SimpleConsumerProperties.Builder()
-                .partition(0)
-                .port(port)
-                .topic(TOPIC)
-                .addBroker("127.0.0.1")
-                .build()
-                , msg -> {
-            if(30 == counter.incrementAndGet()) testComplete();
-        }
-        );
-
-
-        consumer.request(100);
-        consumer.fetch();
-
-        Thread.sleep(100);
-        range(0, 40).forEach(val -> {
-            vertx.eventBus().send("outgoing", new JsonObject().put("topic", TOPIC).put("msg", "" + val));
-        });
-
         consumer.fetch();
         consumer.close();
 

@@ -3,6 +3,8 @@ package de.codeptibull.vertx.kafka.simple;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Context;
 import io.vertx.core.Future;
+import io.vertx.core.logging.Logger;
+import io.vertx.core.logging.impl.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.List;
@@ -20,6 +22,7 @@ import static org.apache.commons.lang3.Validate.notNull;
  * brokers -> comma separated list of kafka-hosts <br/>
  */
 public class KafkaSimpleConsumerVerticle extends AbstractVerticle {
+    private static final Logger LOGGER = LoggerFactory.getLogger(KafkaSimpleConsumerVerticle.class);
 
     public static final String LISTEN_ADDRESS = "listenAddress";
     public static final String TARGET_ADDRESS = "targetAddress";
@@ -55,10 +58,10 @@ public class KafkaSimpleConsumerVerticle extends AbstractVerticle {
         );
 
         vertx.eventBus().<Integer>consumer(listenAddress, msg -> {
-            consumer.request(msg.body());
+            //TODO: add start/stop messages
             vertx.<ResultEnum>executeBlocking(event ->
                     consumer.fetch(), done -> {
-                System.out.println("RESULT "+done.result());
+                LOGGER.info("RESULT "+done.result());
             });
         }).completionHandler(done -> startFuture.complete());
 

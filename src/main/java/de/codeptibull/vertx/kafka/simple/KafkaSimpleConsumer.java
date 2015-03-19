@@ -15,7 +15,6 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Refactored version from the Kafka documentation.
@@ -27,7 +26,6 @@ public class KafkaSimpleConsumer {
     private SimpleConsumerProperties cd;
     private Deque<MessageAndOffset> pending = new ArrayDeque<>();
     private SimpleConsumer consumer;
-    private AtomicInteger remainingMessages = new AtomicInteger(0);
     private Handler<byte[]> msgHandler;
     private String leadBroker = null;
     private MutableLong currentOffset = new MutableLong(0);
@@ -55,16 +53,11 @@ public class KafkaSimpleConsumer {
         if (consumer != null) consumer.close();
     }
 
-    public void request(int amount) {
-        remainingMessages.addAndGet(amount);
-    }
-
     public ResultEnum fetch() {
         int numErrors = 0;
-        int availableTokens = remainingMessages.get();
-        while (availableTokens > 0) {
+        while (true) {
             if(!pending.isEmpty()) {
-                while(availableTokens > 0 && !pending.isEmpty()) {
+                while(!pending.isEmpty()) {
                     MessageAndOffset messageAndOffset = pending.poll();
                     ByteBuffer payload = messageAndOffset.message().payload();
                     byte[] bytes = new byte[payload.limit()];
@@ -73,10 +66,7 @@ public class KafkaSimpleConsumer {
 
                     //TODO: and here the commit-magic happens
 
-                    //treat as unbounded receiver
-                    if(availableTokens != Integer.MAX_VALUE) remainingMessages.decrementAndGet();
                 }
-                if(remainingMessages.get() == 0) return ResultEnum.DONE;
             }
 
             if (leadBroker == null) {
@@ -111,15 +101,15 @@ public class KafkaSimpleConsumer {
             }
             numErrors = 0;
 
-            processRepsonseAndReturnNewOffset(currentOffset, cd, fetchResponse, pending);
-            //TODO: AAAAARGH
-//            if (!processRepsonseAndReturnNewOffset(currentOffset, cd, fetchResponse, pending)) return ResultEnum.TOPIC_EMPTY;
+            if(cd.isStopOnEmptyToppic() && !processRepsonseAndReturnIfTopicIsEmpty(currentOffset, cd, fetchResponse, pending)) return ResultEnum.TOPIC_EMPTY;
+            else
+                processRepsonseAndReturnIfTopicIsEmpty(currentOffset, cd, fetchResponse, pending);
 
         }
         return ResultEnum.ERROR;
     }
 
-    private static boolean processRepsonseAndReturnNewOffset(MutableLong lastReadOffset, SimpleConsumerProperties cd, FetchResponse fetchResponse, Deque<MessageAndOffset> pending) {
+    private static boolean processRepsonseAndReturnIfTopicIsEmpty(MutableLong lastReadOffset, SimpleConsumerProperties cd, FetchResponse fetchResponse, Deque<MessageAndOffset> pending) {
         boolean read = false;
 
         for (MessageAndOffset messageAndOffset : fetchResponse.messageSet(cd.getTopic(), cd.getPartition())) {

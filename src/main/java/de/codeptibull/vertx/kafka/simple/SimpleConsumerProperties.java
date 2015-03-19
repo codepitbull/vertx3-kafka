@@ -22,11 +22,12 @@ public class SimpleConsumerProperties {
     private final int bufferSize;
     private final int fetchSize;
     private final long offset;
+    private final boolean stopOnEmptyToppic;
 
     private final List<String> seedBrokers;
     private final List<String> roSeedBrokers;
 
-    private SimpleConsumerProperties(String clientName, String topic, int partition, int port, List<String> seedBrokers, int soTimeout, int bufferSize, int fetchSize, long offset) {
+    private SimpleConsumerProperties(String clientName, String topic, int partition, int port, List<String> seedBrokers, int soTimeout, int bufferSize, int fetchSize, long offset, boolean stopOnEmptyToppic) {
         this.clientName = clientName;
         this.topic = topic;
         this.partition = partition;
@@ -37,6 +38,7 @@ public class SimpleConsumerProperties {
         this.fetchSize = fetchSize;
         this.offset = offset;
         roSeedBrokers = Collections.unmodifiableList(seedBrokers);
+        this.stopOnEmptyToppic = stopOnEmptyToppic;
     }
 
     @Override
@@ -80,6 +82,10 @@ public class SimpleConsumerProperties {
         return offset;
     }
 
+    public boolean isStopOnEmptyToppic() {
+        return stopOnEmptyToppic;
+    }
+
     public SimpleConsumerProperties clearSeedBrokers() {
         seedBrokers.clear();
         return this;
@@ -98,6 +104,7 @@ public class SimpleConsumerProperties {
         private int soTimeout = 100000;
         private int bufferSize = 64 * 1024;
         private long offset = -1;
+        private boolean stopOnEmptyToppic = false;
         int fetchSize = 10000;
         private List<String> seedBrokers = new ArrayList<>();
 
@@ -146,6 +153,11 @@ public class SimpleConsumerProperties {
             return this;
         }
 
+        public Builder stopOnEmptyToppic(boolean stopOnEmptyToppic) {
+            this.stopOnEmptyToppic = stopOnEmptyToppic;
+            return this;
+        }
+
         public SimpleConsumerProperties build() {
             notEmpty("topic must not be empty", topic);
             isTrue(!seedBrokers.isEmpty(), "at least one seed broker must be provided");
@@ -155,7 +167,7 @@ public class SimpleConsumerProperties {
             isTrue(soTimeout > 0, "soTimeout has to be >0");
             isTrue(bufferSize > 0, "bufferSize has to be >0");
 
-            return new SimpleConsumerProperties("Client_" + topic + "_" + partition, topic, partition, port, seedBrokers, soTimeout, bufferSize, fetchSize, offset);
+            return new SimpleConsumerProperties("Client_" + topic + "_" + partition, topic, partition, port, seedBrokers, soTimeout, bufferSize, fetchSize, offset, stopOnEmptyToppic);
         }
     }
 }
