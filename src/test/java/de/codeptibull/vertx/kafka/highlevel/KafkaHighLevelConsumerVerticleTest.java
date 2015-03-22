@@ -60,7 +60,7 @@ public class KafkaHighLevelConsumerVerticleTest extends VertxTestBase {
                                 .put(TOPIC, TEST_TOPIC)
                                 .put(GROUP_ID, "testGroup" + TEST_TOPIC)
                 ));
-        waitUntil(() -> vertx.deployments().size() == 2);
+        waitUntil(() -> vertx.deploymentIDs().size() == 2);
 
     }
 

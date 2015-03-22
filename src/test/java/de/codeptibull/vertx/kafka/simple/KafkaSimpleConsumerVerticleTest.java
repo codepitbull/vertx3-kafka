@@ -57,7 +57,7 @@ public class KafkaSimpleConsumerVerticleTest extends VertxTestBase {
         vertx.deployVerticle(KafkaProducerVerticle.class.getName(),
                 new DeploymentOptions().setConfig(new JsonObject().put("bootstrap.server", "127.0.0.1:" + port)));
 
-        waitUntil(() -> vertx.deployments().size() == 1);
+        waitUntil(() -> vertx.deploymentIDs().size() == 1);
 
     }
 
