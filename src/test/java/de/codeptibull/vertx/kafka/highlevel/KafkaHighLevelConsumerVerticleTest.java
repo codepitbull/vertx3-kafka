@@ -1,6 +1,6 @@
 package de.codeptibull.vertx.kafka.highlevel;
 
-import de.codeptibull.vertx.kafka.util.KafkaProducerVerticle;
+import de.codeptibull.vertx.kafka.writer.KafkaWriterVerticle;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
@@ -20,6 +20,8 @@ import org.junit.Test;
 import java.util.Properties;
 
 import static de.codeptibull.vertx.kafka.highlevel.KafkaHighLevelConsumerVerticle.*;
+import static de.codeptibull.vertx.kafka.writer.KafkaWriterVerticle.ADDR_EVENTSTORE_WRITE;
+import static de.codeptibull.vertx.kafka.writer.KafkaWriterVerticle.EVENT;
 import static java.util.stream.IntStream.range;
 
 /**
@@ -51,7 +53,7 @@ public class KafkaHighLevelConsumerVerticleTest extends VertxTestBase {
         Time mock = new MockTime();
         kafkaServer = TestUtils.createServer(config, mock);
 
-        vertx.deployVerticle(KafkaProducerVerticle.class.getName(),
+        vertx.deployVerticle(KafkaWriterVerticle.class.getName(),
                 new DeploymentOptions().setConfig(new JsonObject().put("bootstrap.server", "127.0.0.1:" + port)));
 
         vertx.deployVerticle(KafkaHighLevelConsumerVerticle.class.getName(),
@@ -83,7 +85,7 @@ public class KafkaHighLevelConsumerVerticleTest extends VertxTestBase {
             }
         }).completionHandler(complete ->
                         range(0, 500).forEach(val -> {
-                            vertx.eventBus().send("outgoing", new JsonObject().put("topic", TEST_TOPIC).put("msg", "" + val));
+                            vertx.eventBus().send(ADDR_EVENTSTORE_WRITE, new JsonObject().put(TOPIC, TEST_TOPIC).put(EVENT, "" + val));
                         })
         );
 

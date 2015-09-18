@@ -1,4 +1,4 @@
-package de.codeptibull.vertx.kafka.util;
+package de.codeptibull.vertx.kafka.writer;
 
 import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
@@ -12,17 +12,19 @@ import java.util.Properties;
 import static org.apache.commons.lang3.Validate.notEmpty;
 
 /**
- * Created by jmader on 17.02.15.
+ * A simple writer for persisting events in Kafka.
  */
-public class KafkaProducerVerticle extends AbstractVerticle {
+public class KafkaWriterVerticle extends AbstractVerticle {
 
+    public static final String ADDR_EVENTSTORE_WRITE = "eventstore.write";
+    public static final String TOPIC = "topic";
+    public static final String EVENT = "event";
     private KafkaProducer<String, String> producer;
 
     @Override
     public void start(Future<Void> startFuture) throws Exception {
-        notEmpty("bootstrap.server not set", config().getString("bootstrap.server"));
         Properties props = new Properties();
-        props.put("bootstrap.servers", config().getString("bootstrap.server"));
+        props.put("bootstrap.servers", notEmpty(config().getString("bootstrap.server"), "bootstrap.server not set"));
         props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
         props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
         props.put("producer.type", "async");
@@ -31,13 +33,16 @@ public class KafkaProducerVerticle extends AbstractVerticle {
 
         producer = new KafkaProducer<>(props);
 
-        MessageConsumer<JsonObject> outgoing = vertx.eventBus().<JsonObject>localConsumer("outgoing");
-        outgoing.bodyStream().handler(jsonObject ->
+        MessageConsumer<JsonObject> outgoing = vertx.eventBus().<JsonObject>localConsumer(ADDR_EVENTSTORE_WRITE);
+        outgoing.handler(msg ->
                         producer.send
                                 (new ProducerRecord<>(
-                                                jsonObject.getString("topic"), jsonObject.getString("msg")),
+                                                msg.body().getString(TOPIC), msg.body().getString(EVENT)),
                                         (result, exception) -> {
-                                            //do nothing for now but remember that this is called from a different thread!
+                                            if(exception == null)
+                                                msg.reply("Topic:"+result.topic()+" Partition"+result.partition()+" Offset:"+result.offset());
+                                            else
+                                                msg.fail(1, "Failed writing with exception "+exception.getMessage());
                                         })
         );
 

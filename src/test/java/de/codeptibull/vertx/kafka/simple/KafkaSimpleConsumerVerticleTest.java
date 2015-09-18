@@ -1,6 +1,6 @@
 package de.codeptibull.vertx.kafka.simple;
 
-import de.codeptibull.vertx.kafka.util.KafkaProducerVerticle;
+import de.codeptibull.vertx.kafka.writer.KafkaWriterVerticle;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.json.JsonObject;
 import io.vertx.test.core.VertxTestBase;
@@ -18,6 +18,8 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static de.codeptibull.vertx.kafka.writer.KafkaWriterVerticle.ADDR_EVENTSTORE_WRITE;
+import static de.codeptibull.vertx.kafka.writer.KafkaWriterVerticle.EVENT;
 import static de.codeptibull.vertx.kafka.simple.KafkaSimpleConsumerVerticle.*;
 import static java.util.stream.IntStream.range;
 
@@ -54,7 +56,7 @@ public class KafkaSimpleConsumerVerticleTest extends VertxTestBase {
         servers.add(kafkaServer);
         TestUtils.waitUntilMetadataIsPropagated(scala.collection.JavaConversions.asScalaBuffer(servers), TEST_TOPIC, 0, 5000);
 
-        vertx.deployVerticle(KafkaProducerVerticle.class.getName(),
+        vertx.deployVerticle(KafkaWriterVerticle.class.getName(),
                 new DeploymentOptions().setConfig(new JsonObject().put("bootstrap.server", "127.0.0.1:" + port)));
 
         waitUntil(() -> vertx.deploymentIDs().size() == 1);
@@ -79,7 +81,7 @@ public class KafkaSimpleConsumerVerticleTest extends VertxTestBase {
         });
 
         range(0, 40).forEach(val -> {
-            vertx.eventBus().send("outgoing", new JsonObject().put("topic", TEST_TOPIC).put("msg", "" + val));
+            vertx.eventBus().send(ADDR_EVENTSTORE_WRITE, new JsonObject().put(TOPIC, TEST_TOPIC).put(EVENT, "" + val));
         });
 
         //TODO: why do have to do this?? I hit every wait-method available ...

@@ -1,6 +1,6 @@
 package de.codeptibull.vertx.kafka.simple;
 
-import de.codeptibull.vertx.kafka.util.KafkaProducerVerticle;
+import de.codeptibull.vertx.kafka.writer.KafkaWriterVerticle;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.json.JsonObject;
 import io.vertx.test.core.VertxTestBase;
@@ -20,6 +20,8 @@ import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static de.codeptibull.vertx.kafka.highlevel.KafkaHighLevelConsumerVerticle.TOPIC;
+import static de.codeptibull.vertx.kafka.writer.KafkaWriterVerticle.ADDR_EVENTSTORE_WRITE;
+import static de.codeptibull.vertx.kafka.writer.KafkaWriterVerticle.EVENT;
 import static java.util.stream.IntStream.range;
 
 /**
@@ -58,7 +60,7 @@ public class KafkaSimpleConsumerTest extends VertxTestBase {
         TestUtils.waitUntilLeaderIsElectedOrChanged(zkClient, TEST_TOPIC, 0, 500, scala.Option.apply(null), scala.Option.apply(null));
 
 
-        vertx.deployVerticle(KafkaProducerVerticle.class.getName(),
+        vertx.deployVerticle(KafkaWriterVerticle.class.getName(),
                 new DeploymentOptions().setConfig(new JsonObject().put("bootstrap.server", "127.0.0.1:" + port)));
 
         waitUntil(() -> vertx.deploymentIDs().size() == 1);
@@ -77,7 +79,7 @@ public class KafkaSimpleConsumerTest extends VertxTestBase {
         AtomicInteger counter = new AtomicInteger(0);
 
         range(0, 11).forEach(val -> {
-            vertx.eventBus().send("outgoing", new JsonObject().put("topic", TOPIC).put("msg", "" + val));
+            vertx.eventBus().send(ADDR_EVENTSTORE_WRITE, new JsonObject().put(TOPIC, TOPIC).put(EVENT, "" + val));
         });
         //TODO: why do I have to do this?? I hit every wait-method available ...
         Thread.sleep(1000);
@@ -101,7 +103,7 @@ public class KafkaSimpleConsumerTest extends VertxTestBase {
     @Test
     public void testProduceAndConsumeWithOffset() throws Exception{
         range(0, 11).forEach(val -> {
-            vertx.eventBus().send("outgoing", new JsonObject().put("topic", TOPIC).put("msg", "" + val));
+            vertx.eventBus().send(ADDR_EVENTSTORE_WRITE, new JsonObject().put(TOPIC, TOPIC).put(EVENT, "" + val));
         });
         //TODO: why do I have to do this?? I hit every wait-method available ...
         Thread.sleep(1000);

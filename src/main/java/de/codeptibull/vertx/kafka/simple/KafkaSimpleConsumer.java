@@ -56,17 +56,16 @@ public class KafkaSimpleConsumer {
     public ResultEnum fetch() {
         int numErrors = 0;
         while (true) {
-            if(!pending.isEmpty()) {
-                while(!pending.isEmpty()) {
-                    MessageAndOffset messageAndOffset = pending.poll();
-                    ByteBuffer payload = messageAndOffset.message().payload();
-                    byte[] bytes = new byte[payload.limit()];
-                    payload.get(bytes);
-                    msgHandler.handle(bytes);
+            while(!pending.isEmpty()) {
+                MessageAndOffset messageAndOffset = pending.poll();
+                ByteBuffer payload = messageAndOffset.message().payload();
+                System.out.println("PAY!! "+payload);
+                byte[] bytes = new byte[payload.limit()];
+                payload.get(bytes);
+                msgHandler.handle(bytes);
 
-                    //TODO: and here the commit-magic happens
+                //TODO: and here the commit-magic happens
 
-                }
             }
 
             if (leadBroker == null) {
