@@ -4,10 +4,9 @@ import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Context;
 import io.vertx.core.Future;
 import io.vertx.core.logging.Logger;
-import io.vertx.core.logging.impl.LoggerFactory;
+import io.vertx.core.logging.LoggerFactory;
 
 import java.util.Arrays;
-import java.util.List;
 
 import static org.apache.commons.lang3.Validate.notEmpty;
 import static org.apache.commons.lang3.Validate.notNull;
@@ -35,45 +34,30 @@ public class KafkaSimpleConsumerVerticle extends AbstractVerticle {
 
     @Override
     public void start(Future<Void> startFuture) throws Exception {
-        validateConfig();
-
-        String listenAddress = config().getString(LISTEN_ADDRESS);
-        String targetAddress = config().getString(TARGET_ADDRESS);
-        String topic = config().getString(TOPIC);
-        Integer partition = config().getInteger(PARTITION);
-        Integer port = config().getInteger(PORT);
-        Integer offset = config().getInteger(OFFSET, -1);
-        List<String> brokers = Arrays.asList(config().getString(BROKERS).split(","));
+        String listenAddress = notEmpty(config().getString(LISTEN_ADDRESS), "listenAddress not provided");
+        String targetAddress = notEmpty(config().getString(TARGET_ADDRESS), "targetAddress not provided");
 
         Context context = vertx.getOrCreateContext();
 
         consumer = new KafkaSimpleConsumer(new SimpleConsumerProperties.Builder()
-                .partition(partition)
-                .port(port)
-                .topic(topic)
-                .addBrokers(brokers)
-                .offset(offset)
+                .partition(notNull(config().getInteger(PARTITION), "partition not provided"))
+                .port(notNull(config().getInteger(PORT), "port not provided"))
+                .topic(notEmpty(config().getString(TOPIC), "topic not provided"))
+                .addBrokers(Arrays.asList(notEmpty(config().getString(BROKERS), "brokers not provided").split(",")))
+                .offset(config().getInteger(OFFSET, -1))
                 .build()
                 , msg -> context.runOnContext(t -> vertx.eventBus().send(targetAddress, msg))
         );
 
         vertx.eventBus().<Integer>consumer(listenAddress, msg -> {
             //TODO: add start/stop messages
-            vertx.<ResultEnum>executeBlocking(event ->
-                    consumer.fetch(), done -> {
-                LOGGER.info("RESULT "+done.result());
-            });
+            vertx.<ResultEnum>executeBlocking(
+                    event ->
+                            consumer.fetch(),
+                    done ->
+                            LOGGER.info("RESULT " + done.result())
+            );
         }).completionHandler(done -> startFuture.complete());
-
-    }
-
-    private void validateConfig() {
-        notEmpty(config().getString(LISTEN_ADDRESS), "listenAddress not provided");
-        notEmpty(config().getString(TARGET_ADDRESS), "targetAddress not provided");
-        notEmpty(config().getString(TOPIC), "topic not provided");
-        notEmpty(config().getString(BROKERS), "brokers not provided");
-        notNull(config().getInteger(PARTITION), "partition not provided");
-        notNull(config().getInteger(PORT), "port not provided");
     }
 
     @Override

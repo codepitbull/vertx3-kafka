@@ -1,6 +1,8 @@
 package de.codeptibull.vertx.kafka.simple;
 
 import io.vertx.core.Handler;
+import io.vertx.core.logging.Logger;
+import io.vertx.core.logging.LoggerFactory;
 import kafka.api.FetchRequest;
 import kafka.api.FetchRequestBuilder;
 import kafka.api.PartitionOffsetRequestInfo;
@@ -10,8 +12,6 @@ import kafka.javaapi.*;
 import kafka.javaapi.consumer.SimpleConsumer;
 import kafka.message.MessageAndOffset;
 import org.apache.commons.lang3.mutable.MutableLong;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.util.*;
@@ -101,7 +101,7 @@ public class KafkaSimpleConsumer {
             }
             numErrors = 0;
 
-            if(cd.isStopOnEmptyToppic() && !processRepsonseAndReturnIfTopicIsEmpty(currentOffset, cd, fetchResponse, pending)) return ResultEnum.TOPIC_EMPTY;
+            if(cd.isStopOnEmptyTopic() && !processRepsonseAndReturnIfTopicIsEmpty(currentOffset, cd, fetchResponse, pending)) return ResultEnum.TOPIC_EMPTY;
             else
                 processRepsonseAndReturnIfTopicIsEmpty(currentOffset, cd, fetchResponse, pending);
 
@@ -127,7 +127,7 @@ public class KafkaSimpleConsumer {
         return read;
     }
 
-    public static long getLastOffset(SimpleConsumer consumer, SimpleConsumerProperties cd, long whichTime) {
+    private static long getLastOffset(SimpleConsumer consumer, SimpleConsumerProperties cd, long whichTime) {
         Map<TopicAndPartition, PartitionOffsetRequestInfo> requestInfo = new HashMap<TopicAndPartition, PartitionOffsetRequestInfo>();
         requestInfo.put(new TopicAndPartition(cd.getTopic(), cd.getPartition())
                 , new PartitionOffsetRequestInfo(whichTime, 1));

@@ -82,7 +82,7 @@ public class SimpleConsumerProperties {
         return offset;
     }
 
-    public boolean isStopOnEmptyToppic() {
+    public boolean isStopOnEmptyTopic() {
         return stopOnEmptyToppic;
     }
 

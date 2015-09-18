@@ -3,6 +3,8 @@ package de.codeptibull.vertx.kafka.highlevel;
 import de.codeptibull.vertx.kafka.util.KafkaProducerVerticle;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.logging.Logger;
+import io.vertx.core.logging.LoggerFactory;
 import io.vertx.test.core.VertxTestBase;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaServer;
@@ -14,8 +16,6 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Properties;
 

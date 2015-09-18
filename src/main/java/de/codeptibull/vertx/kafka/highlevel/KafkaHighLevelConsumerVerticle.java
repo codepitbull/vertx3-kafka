@@ -1,10 +1,9 @@
 package de.codeptibull.vertx.kafka.highlevel;
 
-import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
 import io.vertx.rxjava.core.AbstractVerticle;
+import io.vertx.rxjava.core.Context;
 import kafka.consumer.ConsumerConfig;
-import kafka.consumer.ConsumerIterator;
 import kafka.consumer.KafkaStream;
 import kafka.javaapi.consumer.ConsumerConnector;
 
@@ -37,37 +36,30 @@ public class KafkaHighLevelConsumerVerticle extends AbstractVerticle {
     public static final String TOPIC = "topic";
     public static final String ADDRESS = "address";
     public static final String AUTO_OFFSET_RESET = "auto.offset.reset";
-    private ConsumerConnector consumer;
-
-    private String topic;
     private Thread consumerThread;
-    private String targetAddress;
 
     @Override
-    public void start(Future<Void> startFuture) throws Exception {
-        notEmpty(config().getString(TOPIC), "topic not set");
-        this.topic = config().getString(TOPIC);
-        targetAddress = config().getString(ADDRESS, "kafka-" + topic);
+    public void start() throws Exception {
+        String topic = notEmpty(config().getString(TOPIC), "topic not set");
+        String targetAddress = config().getString(ADDRESS, "kafka-" + topic);
 
-        consumer = kafka.consumer.Consumer.createJavaConsumerConnector(
-                createConsumerConfig(config()));
+        Context ctx = vertx.getOrCreateContext();
+        Runnable consumerRunnable = () -> {
+            ConsumerConnector consumer = kafka.consumer.Consumer.createJavaConsumerConnector(
+                    createConsumerConfig(config()));
+            Map<String, Integer> topicCountMap = new HashMap<String, Integer>();
+            topicCountMap.put(topic, 1);
+            Map<String, List<KafkaStream<byte[], byte[]>>> consumerMap = consumer.createMessageStreams(topicCountMap);
+            List<KafkaStream<byte[], byte[]>> streams = consumerMap.get(topic);
+            KafkaStream<byte[], byte[]> messageAndMetadatas = streams.get(0);
 
-        Map<String, Integer> topicCountMap = new HashMap<String, Integer>();
-        topicCountMap.put(topic, 1);
-        Map<String, List<KafkaStream<byte[], byte[]>>> consumerMap = consumer.createMessageStreams(topicCountMap);
-
-        List<KafkaStream<byte[], byte[]>> streams = consumerMap.get(topic);
-        ConsumerIterator<byte[], byte[]> iterator = streams.get(0).iterator();
-        consumerThread = new Thread() {
-            @Override
-            public void run() {
-                startFuture.complete();
-                while (iterator.hasNext()) {
-                    vertx.eventBus().send(targetAddress, iterator.next().message());
-                }
-                consumer.shutdown();
-            }
+            messageAndMetadatas.forEach(msg -> {
+                ctx.runOnContext(exe -> vertx.eventBus().send(targetAddress, msg.message()));
+            });
+            consumer.shutdown();
         };
+
+        consumerThread = new Thread(consumerRunnable);
         consumerThread.start();
     }
 
