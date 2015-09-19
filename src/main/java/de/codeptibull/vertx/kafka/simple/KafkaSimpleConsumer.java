@@ -59,7 +59,6 @@ public class KafkaSimpleConsumer {
             while(!pending.isEmpty()) {
                 MessageAndOffset messageAndOffset = pending.poll();
                 ByteBuffer payload = messageAndOffset.message().payload();
-                System.out.println("PAY!! "+payload);
                 byte[] bytes = new byte[payload.limit()];
                 payload.get(bytes);
                 msgHandler.handle(bytes);

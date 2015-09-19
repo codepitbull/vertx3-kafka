@@ -19,12 +19,13 @@ public class KafkaWriterVerticle extends AbstractVerticle {
     public static final String ADDR_EVENTSTORE_WRITE = "eventstore.write";
     public static final String TOPIC = "topic";
     public static final String EVENT = "event";
+    public static final String CONFIG_KAFKA_HOST = "kafka_host";
     private KafkaProducer<String, String> producer;
 
     @Override
     public void start(Future<Void> startFuture) throws Exception {
         Properties props = new Properties();
-        props.put("bootstrap.servers", notEmpty(config().getString("bootstrap.server"), "bootstrap.server not set"));
+        props.put("bootstrap.servers", notEmpty(config().getString(CONFIG_KAFKA_HOST), "kafka_host not set"));
         props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
         props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
         props.put("producer.type", "async");

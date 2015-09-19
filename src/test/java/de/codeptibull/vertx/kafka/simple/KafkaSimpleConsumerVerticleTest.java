@@ -19,6 +19,7 @@ import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static de.codeptibull.vertx.kafka.writer.KafkaWriterVerticle.ADDR_EVENTSTORE_WRITE;
+import static de.codeptibull.vertx.kafka.writer.KafkaWriterVerticle.CONFIG_KAFKA_HOST;
 import static de.codeptibull.vertx.kafka.writer.KafkaWriterVerticle.EVENT;
 import static de.codeptibull.vertx.kafka.simple.KafkaSimpleConsumerVerticle.*;
 import static java.util.stream.IntStream.range;
@@ -57,7 +58,7 @@ public class KafkaSimpleConsumerVerticleTest extends VertxTestBase {
         TestUtils.waitUntilMetadataIsPropagated(scala.collection.JavaConversions.asScalaBuffer(servers), TEST_TOPIC, 0, 5000);
 
         vertx.deployVerticle(KafkaWriterVerticle.class.getName(),
-                new DeploymentOptions().setConfig(new JsonObject().put("bootstrap.server", "127.0.0.1:" + port)));
+                new DeploymentOptions().setConfig(new JsonObject().put(CONFIG_KAFKA_HOST, "127.0.0.1:" + port)));
 
         waitUntil(() -> vertx.deploymentIDs().size() == 1);
 

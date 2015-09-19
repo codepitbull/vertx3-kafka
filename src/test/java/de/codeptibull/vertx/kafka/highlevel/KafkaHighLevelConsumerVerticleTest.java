@@ -21,6 +21,7 @@ import java.util.Properties;
 
 import static de.codeptibull.vertx.kafka.highlevel.KafkaHighLevelConsumerVerticle.*;
 import static de.codeptibull.vertx.kafka.writer.KafkaWriterVerticle.ADDR_EVENTSTORE_WRITE;
+import static de.codeptibull.vertx.kafka.writer.KafkaWriterVerticle.CONFIG_KAFKA_HOST;
 import static de.codeptibull.vertx.kafka.writer.KafkaWriterVerticle.EVENT;
 import static java.util.stream.IntStream.range;
 
@@ -54,7 +55,7 @@ public class KafkaHighLevelConsumerVerticleTest extends VertxTestBase {
         kafkaServer = TestUtils.createServer(config, mock);
 
         vertx.deployVerticle(KafkaWriterVerticle.class.getName(),
-                new DeploymentOptions().setConfig(new JsonObject().put("bootstrap.server", "127.0.0.1:" + port)));
+                new DeploymentOptions().setConfig(new JsonObject().put(CONFIG_KAFKA_HOST, "127.0.0.1:" + port)));
 
         vertx.deployVerticle(KafkaHighLevelConsumerVerticle.class.getName(),
                 new DeploymentOptions().setConfig(new JsonObject()
