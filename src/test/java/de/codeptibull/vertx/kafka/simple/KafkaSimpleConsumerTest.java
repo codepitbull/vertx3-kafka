@@ -9,6 +9,7 @@ import kafka.server.KafkaConfig;
 import kafka.server.KafkaServer;
 import kafka.utils.*;
 import org.I0Itec.zkclient.ZkClient;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.After;
 import org.junit.Before;
@@ -20,6 +21,7 @@ import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static de.codeptibull.vertx.kafka.highlevel.KafkaHighLevelConsumerVerticle.TOPIC;
+import static de.codeptibull.vertx.kafka.simple.ResultEnum.OK;
 import static de.codeptibull.vertx.kafka.writer.KafkaWriterVerticle.ADDR_EVENTSTORE_WRITE;
 import static de.codeptibull.vertx.kafka.writer.KafkaWriterVerticle.CONFIG_KAFKA_HOST;
 import static de.codeptibull.vertx.kafka.writer.KafkaWriterVerticle.EVENT;
@@ -76,53 +78,44 @@ public class KafkaSimpleConsumerTest extends VertxTestBase {
 
     @Test
     public void testProduceAndConsume() throws Exception{
-        AtomicInteger counter = new AtomicInteger(0);
-
-        range(0, 11).forEach(val -> {
-            vertx.eventBus().send(ADDR_EVENTSTORE_WRITE, new JsonObject().put(TOPIC, TOPIC).put(EVENT, "" + val));
+        vertx.eventBus().send(ADDR_EVENTSTORE_WRITE, new JsonObject().put(TOPIC, TOPIC).put(EVENT, "1"), res -> {
+            KafkaSimpleConsumer consumer = new KafkaSimpleConsumer(new SimpleConsumerProperties.Builder()
+                    .partition(0)
+                    .port(port)
+                    .topic(TOPIC)
+                    .addBroker("127.0.0.1")
+                    .stopOnEmptyToppic(true)
+                    .build()
+            );
+            Pair<ResultEnum, byte[]> fetchResult = consumer.fetch();
+            assertEquals(OK, fetchResult.getLeft());
+            assertEquals("1", new StringDeserializer().deserialize(null, fetchResult.getRight()));
+            consumer.close();
+            testComplete();
         });
-        //TODO: why do I have to do this?? I hit every wait-method available ...
-        Thread.sleep(1000);
-        KafkaSimpleConsumer consumer = new KafkaSimpleConsumer(new SimpleConsumerProperties.Builder()
-                .partition(0)
-                .port(port)
-                .topic(TOPIC)
-                .addBroker("127.0.0.1")
-                .stopOnEmptyToppic(true)
-                .build()
-                , msg -> {
-                    if(10 < counter.incrementAndGet()) testComplete();
-                }
-        );
-        consumer.fetch();
-        consumer.close();
+
 
         await();
     }
 
     @Test
     public void testProduceAndConsumeWithOffset() throws Exception{
-        range(0, 11).forEach(val -> {
-            vertx.eventBus().send(ADDR_EVENTSTORE_WRITE, new JsonObject().put(TOPIC, TOPIC).put(EVENT, "" + val));
+        vertx.eventBus().send(ADDR_EVENTSTORE_WRITE, new JsonObject().put(TOPIC, TOPIC).put(EVENT, "4"), res -> {
+            KafkaSimpleConsumer consumer = new KafkaSimpleConsumer(new SimpleConsumerProperties.Builder()
+                    .partition(0)
+                    .port(port)
+                    .topic(TOPIC)
+                    .addBroker("127.0.0.1")
+                    .offset(0)
+                    .stopOnEmptyToppic(true)
+                    .build()
+            );
+            Pair<ResultEnum, byte[]> fetchResult = consumer.fetch();
+            assertEquals(OK, fetchResult.getLeft());
+            assertEquals("4", new StringDeserializer().deserialize(null, fetchResult.getRight()));
+            consumer.close();
+            testComplete();
         });
-        //TODO: why do I have to do this?? I hit every wait-method available ...
-        Thread.sleep(1000);
-
-        KafkaSimpleConsumer consumer = new KafkaSimpleConsumer(new SimpleConsumerProperties.Builder()
-                .partition(0)
-                .port(port)
-                .topic(TOPIC)
-                .addBroker("127.0.0.1")
-                .offset(4)
-                .stopOnEmptyToppic(true)
-                .build()
-                , msg -> {
-                    if(new StringDeserializer().deserialize(null, msg).equals("4")) testComplete();
-                }
-        );
-        consumer.fetch();
-        consumer.close();
-
         await();
     }
 }

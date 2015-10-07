@@ -1,43 +1,42 @@
 package de.codeptibull.vertx.kafka.simple;
 
-import io.vertx.core.Handler;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import kafka.api.FetchRequest;
 import kafka.api.FetchRequestBuilder;
 import kafka.api.PartitionOffsetRequestInfo;
-import kafka.common.ErrorMapping;
 import kafka.common.TopicAndPartition;
 import kafka.javaapi.*;
 import kafka.javaapi.consumer.SimpleConsumer;
 import kafka.message.MessageAndOffset;
 import org.apache.commons.lang3.mutable.MutableLong;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.nio.ByteBuffer;
 import java.util.*;
+
+import static de.codeptibull.vertx.kafka.simple.ResultEnum.*;
 
 /**
  * Refactored version from the Kafka documentation.
  */
 public class KafkaSimpleConsumer {
 
-    private static final Logger logger = LoggerFactory.getLogger(KafkaSimpleConsumer.class);
+    private static final Logger LOG = LoggerFactory.getLogger(KafkaSimpleConsumer.class);
 
     private SimpleConsumerProperties cd;
     private Deque<MessageAndOffset> pending = new ArrayDeque<>();
     private SimpleConsumer consumer;
-    private Handler<byte[]> msgHandler;
     private String leadBroker = null;
     private MutableLong currentOffset = new MutableLong(0);
 
-    public KafkaSimpleConsumer(SimpleConsumerProperties cd, Handler<byte[]> msgHandler) {
-        this.msgHandler = msgHandler;
+    public KafkaSimpleConsumer(SimpleConsumerProperties cd) {
         this.cd = cd;
         Optional<PartitionMetadata> metadata = findLeader(cd);
         if (!metadata.isPresent()) {
             throw new RuntimeException("Can't find metadata for Topic and Partition. Exiting");
         }
-        if (metadata.get().leader() == null) {
+        if (metadata.get().leader() == null || metadata.get().leader().host() == null) {
             throw new RuntimeException("Can't find Leader for Topic and Partition. Exiting");
         }
         leadBroker = metadata.get().leader().host();
@@ -53,67 +52,48 @@ public class KafkaSimpleConsumer {
         if (consumer != null) consumer.close();
     }
 
-    public ResultEnum fetch() {
-        int numErrors = 0;
-        while (true) {
-            while(!pending.isEmpty()) {
-                MessageAndOffset messageAndOffset = pending.poll();
-                ByteBuffer payload = messageAndOffset.message().payload();
-                byte[] bytes = new byte[payload.limit()];
-                payload.get(bytes);
-                msgHandler.handle(bytes);
-
-                //TODO: and here the commit-magic happens
-
-            }
-
-            if (leadBroker == null) {
-                Optional<String> newLeader = findNewLeader(leadBroker, cd);
-                if(newLeader.isPresent()) leadBroker = newLeader.get();
-                else return ResultEnum.MISSING_LEADER;
-            }
-
-            if (consumer == null) consumer = new SimpleConsumer(leadBroker, cd.getPort(), cd.getSoTimeout(), cd.getBufferSize(), cd.getClientName());
-
-            FetchRequest req = new FetchRequestBuilder()
-                    .clientId(consumer.clientId())
-                    .addFetch(cd.getTopic(), cd.getPartition(), currentOffset.getValue(), cd.getFetchSize())
-                    .build();
-            FetchResponse fetchResponse = consumer.fetch(req);
-
-            if (fetchResponse.hasError()) {
-                numErrors++;
-                // Something went wrong!
-                short code = fetchResponse.errorCode(cd.getTopic(), cd.getPartition());
-                logger.warn("Error fetching data from the Broker:" + leadBroker + " Reason: " + code);
-                if (numErrors > 5) break;
-
-                if (code == ErrorMapping.OffsetOutOfRangeCode()) {
-                    // We asked for an invalid offset. For simple case ask for the last element to reset
-                    currentOffset.setValue(getLastOffset(consumer, cd, kafka.api.OffsetRequest.LatestTime()));
-                    continue;
-                }
-                consumer.close();
-                consumer = null;
-
-            }
-            numErrors = 0;
-
-            if(cd.isStopOnEmptyTopic() && !processRepsonseAndReturnIfTopicIsEmpty(currentOffset, cd, fetchResponse, pending)) return ResultEnum.TOPIC_EMPTY;
-            else
-                processRepsonseAndReturnIfTopicIsEmpty(currentOffset, cd, fetchResponse, pending);
-
+    public Pair<ResultEnum,byte[]> fetch() {
+        if(!pending.isEmpty()) {
+            return Pair.of(OK, getPendingMessage(pending));
+            //TODO: and here the commit-magic happens
         }
-        return ResultEnum.ERROR;
+
+        FetchRequest req = new FetchRequestBuilder()
+                .clientId(consumer.clientId())
+                .addFetch(cd.getTopic(), cd.getPartition(), currentOffset.getValue(), cd.getFetchSize())
+                .build();
+        FetchResponse fetchResponse = consumer.fetch(req);
+
+        if (fetchResponse.hasError()) {
+            LOG.error("Error while fetching " + fetchResponse.errorCode(cd.getTopic(), cd.getPartition()));
+            return Pair.of(ERROR, new byte[]{});
+        }
+
+        if(!processRepsonseAndReturnIfSomethingWasRead(currentOffset, cd, fetchResponse, pending) && cd.isStopOnEmptyTopic())
+            return Pair.of(TOPIC_EMPTY, new byte[]{});
+        else {
+            return Pair.of(OK, getPendingMessage(pending));
+        }
     }
 
-    private static boolean processRepsonseAndReturnIfTopicIsEmpty(MutableLong lastReadOffset, SimpleConsumerProperties cd, FetchResponse fetchResponse, Deque<MessageAndOffset> pending) {
+    private static byte[] getPendingMessage(Deque<MessageAndOffset> pending) {
+        MessageAndOffset messageAndOffset = pending.poll();
+        if(messageAndOffset != null) {
+            ByteBuffer payload = messageAndOffset.message().payload();
+            byte[] bytes = new byte[payload.limit()];
+            payload.get(bytes);
+            return bytes;
+        }
+        return new byte[]{};
+    }
+
+    private static boolean processRepsonseAndReturnIfSomethingWasRead(MutableLong lastReadOffset, SimpleConsumerProperties cd, FetchResponse fetchResponse, Deque<MessageAndOffset> pending) {
         boolean read = false;
 
         for (MessageAndOffset messageAndOffset : fetchResponse.messageSet(cd.getTopic(), cd.getPartition())) {
             long currentOffset = messageAndOffset.offset();
             if (currentOffset < lastReadOffset.getValue()) {
-                logger.warn("Found an old offset: " + currentOffset + " Expecting: " + lastReadOffset.getValue());
+                LOG.warn("Found an old offset: " + currentOffset + " Expecting: " + lastReadOffset.getValue());
                 continue;
             }
 
@@ -133,17 +113,11 @@ public class KafkaSimpleConsumer {
                 requestInfo, kafka.api.OffsetRequest.CurrentVersion(), consumer.clientId()));
 
         if (response.hasError()) {
-            logger.warn("Error fetching data Offset Data the Broker. Reason: " + response.errorCode(cd.getTopic(), cd.getPartition()));
+            LOG.warn("Error fetching data Offset Data the Broker. Reason: " + response.errorCode(cd.getTopic(), cd.getPartition()));
             return 0;
         }
         long[] offsets = response.offsets(cd.getTopic(), cd.getPartition());
         return offsets[0];
-    }
-
-    private static Optional<String> findNewLeader(String oldLeader, SimpleConsumerProperties cd) {
-        Optional<PartitionMetadata> metadata = findLeader(cd);
-            if (!metadata.isPresent() || metadata.get().leader() == null || oldLeader.equalsIgnoreCase(metadata.get().leader().host())) return Optional.empty();
-        return Optional.of(metadata.get().leader().host());
     }
 
     private static Optional<PartitionMetadata> findLeader(SimpleConsumerProperties cd) {

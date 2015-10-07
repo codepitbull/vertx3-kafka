@@ -73,32 +73,20 @@ public class KafkaSimpleConsumerVerticleTest extends VertxTestBase {
 
     @Test
     public void testProduceAndConsume() throws Exception{
-
-        AtomicInteger counter = new AtomicInteger(0);
-
-        vertx.eventBus().<byte[]>consumer("simple", msg -> {
-            if (counter.incrementAndGet() == 40)
-                testComplete();
+        vertx.eventBus().send(ADDR_EVENTSTORE_WRITE, new JsonObject().put(TOPIC, TEST_TOPIC).put(EVENT, "1"), res -> {
+            vertx.deployVerticle(KafkaSimpleConsumerVerticle.class.getName(),
+                    new DeploymentOptions().setConfig(new JsonObject()
+                                    .put(PARTITION, 0)
+                                    .put(PORT, port)
+                                    .put(TOPIC, TEST_TOPIC)
+                                    .put(BROKERS, "127.0.0.1")
+                    ), comp -> {
+                        vertx.eventBus().send(ADDR_KAFKA_CONSUMER_BASE + TEST_TOPIC, CMD_RECEIVE_ONE, event -> {
+                            assertTrue(event.succeeded());
+                            testComplete();
+                        });
+                    });
         });
-
-        range(0, 40).forEach(val -> {
-            vertx.eventBus().send(ADDR_EVENTSTORE_WRITE, new JsonObject().put(TOPIC, TEST_TOPIC).put(EVENT, "" + val));
-        });
-
-        //TODO: why do have to do this?? I hit every wait-method available ...
-        Thread.sleep(1000);
-
-        vertx.deployVerticle(KafkaSimpleConsumerVerticle.class.getName(),
-                new DeploymentOptions().setConfig(new JsonObject()
-                                .put(PARTITION, 0)
-                                .put(PORT, port)
-                                .put(TOPIC, TEST_TOPIC)
-                                .put(BROKERS, "127.0.0.1")
-                                .put(LISTEN_ADDRESS, "receive")
-                                .put(TARGET_ADDRESS, "simple")
-                ), comp -> {
-                    vertx.eventBus().send("receive", 10);
-                });
 
         await();
     }

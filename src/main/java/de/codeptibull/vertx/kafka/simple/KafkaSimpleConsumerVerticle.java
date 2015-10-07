@@ -5,9 +5,11 @@ import io.vertx.core.Context;
 import io.vertx.core.Future;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.Arrays;
 
+import static de.codeptibull.vertx.kafka.simple.ResultEnum.OK;
 import static org.apache.commons.lang3.Validate.notEmpty;
 import static org.apache.commons.lang3.Validate.notNull;
 
@@ -23,40 +25,43 @@ import static org.apache.commons.lang3.Validate.notNull;
 public class KafkaSimpleConsumerVerticle extends AbstractVerticle {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaSimpleConsumerVerticle.class);
 
-    public static final String LISTEN_ADDRESS = "listenAddress";
-    public static final String TARGET_ADDRESS = "targetAddress";
     public static final String TOPIC = "topic";
     public static final String PARTITION = "partition";
     public static final String PORT = "port";
     public static final String BROKERS = "brokers";
     public static final String OFFSET = "offset";
+    public static final String ADDR_KAFKA_CONSUMER_BASE = "kafka.consumer.";
+    public static final String CMD_RECEIVE_ONE = "receive";
     private KafkaSimpleConsumer consumer;
 
     @Override
     public void start(Future<Void> startFuture) throws Exception {
-        String listenAddress = notEmpty(config().getString(LISTEN_ADDRESS), "listenAddress not provided");
-        String targetAddress = notEmpty(config().getString(TARGET_ADDRESS), "targetAddress not provided");
-
         Context context = vertx.getOrCreateContext();
-
-        consumer = new KafkaSimpleConsumer(new SimpleConsumerProperties.Builder()
+        SimpleConsumerProperties props = new SimpleConsumerProperties.Builder()
                 .partition(notNull(config().getInteger(PARTITION), "partition not provided"))
                 .port(notNull(config().getInteger(PORT), "port not provided"))
                 .topic(notEmpty(config().getString(TOPIC), "topic not provided"))
                 .addBrokers(Arrays.asList(notEmpty(config().getString(BROKERS), "brokers not provided").split(",")))
                 .offset(config().getInteger(OFFSET, -1))
-                .build()
-                , msg -> context.runOnContext(t -> vertx.eventBus().send(targetAddress, msg))
-        );
+                .build();
 
-        vertx.eventBus().<Integer>consumer(listenAddress, msg -> {
+        consumer = new KafkaSimpleConsumer(props);
+
+        vertx.eventBus().<String>consumer(ADDR_KAFKA_CONSUMER_BASE +props.getTopic(), msg -> {
             //TODO: add start/stop messages
-            vertx.<ResultEnum>executeBlocking(
-                    event ->
-                            consumer.fetch(),
-                    done ->
-                            LOGGER.info("RESULT " + done.result())
-            );
+            if(CMD_RECEIVE_ONE.equals(msg.body())) {
+                vertx.<Pair<ResultEnum, byte[]>>executeBlocking(
+                        event -> event.complete(consumer.fetch()),
+                        result -> {
+                            if (result.succeeded()) {
+                                if (OK.equals(result.result().getLeft()))
+                                    context.runOnContext(v -> msg.reply(result.result().getRight()));
+                            } else {
+                                LOGGER.error("Failed fetching next entry", result.cause());
+                            }
+                        }
+                );
+            }
         }).completionHandler(done -> startFuture.complete());
     }
 
